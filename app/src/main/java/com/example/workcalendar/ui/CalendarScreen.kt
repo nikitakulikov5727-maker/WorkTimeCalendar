@@ -1,5 +1,6 @@
 package com.example.workcalendar.ui
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +16,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NightsStay
@@ -23,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.workcalendar.data.*
+import com.example.workcalendar.sync.GoogleDriveSyncManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -51,17 +59,39 @@ data class EditableTariffRow(
 )
 
 @Composable
-fun CalendarScreen(dao: WorkDao) {
+fun CalendarScreen(
+    dao: WorkDao,
+    syncManager: GoogleDriveSyncManager
+) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val allEntries by dao.getAllEntries().collectAsState(initial = emptyList())
     val savedTemplates by dao.getTariffTemplates().collectAsState(initial = emptyList())
+    val syncState by syncManager.uiState.collectAsState()
 
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDayForEdit by remember { mutableStateOf<LocalDate?>(null) }
+    var showCloudDialog by remember { mutableStateOf(false) }
 
     var isRangeMode by remember { mutableStateOf(false) }
     var rangeStart by remember { mutableStateOf<LocalDate?>(null) }
     var rangeEnd by remember { mutableStateOf<LocalDate?>(null) }
+
+    var hasInitializedData by remember { mutableStateOf(false) }
+    LaunchedEffect(allEntries, savedTemplates) {
+        if (!hasInitializedData) {
+            hasInitializedData = true
+            return@LaunchedEffect
+        }
+        if (syncState.account != null && syncState.autoSyncEnabled && !syncState.isBusy) {
+            delay(800)
+            syncManager.backupToDrive(
+                entries = allEntries,
+                templates = savedTemplates,
+                silent = true
+            )
+        }
+    }
 
     val entriesByDay = remember(allEntries) {
         allEntries.groupBy { LocalDate.ofEpochDay(it.dateEpochDay) }
@@ -117,26 +147,46 @@ fun CalendarScreen(dao: WorkDao) {
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    FilledTonalButton(
-                        onClick = {
-                            isRangeMode = !isRangeMode
-                            if (!isRangeMode) {
-                                rangeStart = null
-                                rangeEnd = null
-                            }
-                        },
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = if (isRangeMode) Color(0xFF2E7D32) else Color(0xFF2C2C2C),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (isRangeMode) "Период: ВКЛ" else "Выбрать период", fontSize = 13.sp)
-                    }
-                }
 
-                Row(
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(
+                            onClick = { showCloudDialog = true },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (syncState.account != null) Color(0xFF1E3A5F) else Color(0xFF2C2C2C),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (syncState.account != null) Icons.Default.CloudDone else Icons.Default.Cloud,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = if (syncState.account != null) "Облако" else "Войти",
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = {
+                                isRangeMode = !isRangeMode
+                                if (!isRangeMode) {
+                                    rangeStart = null
+                                    rangeEnd = null
+                                }
+                            },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (isRangeMode) Color(0xFF2E7D32) else Color(0xFF2C2C2C),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (isRangeMode) "Период: ВКЛ" else "Период", fontSize = 13.sp)
+                        }
+                    }
+                }Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -180,7 +230,8 @@ fun CalendarScreen(dao: WorkDao) {
                     .padding(14.dp)
             ) {
                 if (isRangeMode) {
-                    if (rangeStats != null) {val (s, e, totals) = rangeStats
+                    if (rangeStats != null) {
+                        val (s, e, totals) = rangeStats
                         val fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy")
                         Text(
                             text = "Период: ${s.format(fmt)} — ${e.format(fmt)}",
@@ -305,6 +356,147 @@ fun CalendarScreen(dao: WorkDao) {
         }
     }
 
+    if (showCloudDialog) {
+        val activity = context as? Activity
+        AlertDialog(
+            onDismissRequest = { showCloudDialog = false },containerColor = Color(0xFF262626),
+            title = {
+                Text(
+                    text = "Синхронизация с Google Диском",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val account = syncState.account
+                    if (account != null) {
+                        Text(
+                            text = "Аккаунт: ${account.displayName ?: account.email}",
+                            color = Color(0xFF81C784),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = account.email,
+                            color = Color(0xFFB0B0B0),
+                            fontSize = 12.sp
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Автосинхронизация", color = Color.White, fontSize = 14.sp)
+                            Switch(
+                                checked = syncState.autoSyncEnabled,
+                                onCheckedChange = { syncManager.setAutoSync(it) }
+                            )
+                        }
+
+                        syncState.lastSyncLabel?.let { label ->
+                            Text(
+                                text = "Последняя синхронизация: $label",
+                                color = Color(0xFF90CAF9),
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    syncManager.backupToDrive(
+                                        entries = allEntries,
+                                        templates = savedTemplates
+                                    )
+                                }
+                            },
+                            enabled = !syncState.isBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        ) {
+                            Icon(Icons.Default.CloudUpload, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Сохранить в облако", color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    syncManager.restoreFromDrive(dao = dao)
+                                }
+                            },
+                            enabled = !syncState.isBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF90CAF9))
+                        ) {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Восстановить из облака")
+                        }
+
+                        TextButton(
+                            onClick = { syncManager.signOut() },
+                            enabled = !syncState.isBusy,
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Выйти из аккаунта", color = Color(0xFFE57373))
+                        }
+                    } else {
+                        Text(
+                            text = "Войдите через Google, чтобы сохранять смены и тарифы в скрытую папку приложения на Google Диске и восстанавливать их на любом устройстве.",
+                            color = Color(0xFFCCCCCC),
+                            fontSize = 13.sp
+                        )
+
+                        Button(
+                            onClick = {
+                                if (activity != null) {
+                                    scope.launch {
+                                        val res = syncManager.signInAndAuthorize(activity)
+                                        if (res.isSuccess && allEntries.isEmpty() && savedTemplates.isEmpty()) {
+                                            syncManager.restoreFromDrive(dao = dao, silentIfMissing = true)
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !syncState.isBusy && activity != null,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        ) {
+                            Text("Войти через Google", color = Color.White)
+                        }
+                    }
+
+                    if (syncState.isBusy) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Text("Выполняется синхронизация...", color = Color.White, fontSize = 13.sp)
+                        }
+                    }
+
+                    syncState.statusMessage?.let { msg ->
+                        Text(
+                            text = msg,
+                            color = Color(0xFFFFD54F),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCloudDialog = false }) {
+                    Text("Закрыть", color = Color.White)
+                }
+            }
+        )
+    }
+
     selectedDayForEdit?.let { date ->
         DayEditorDialog(
             date = date,
@@ -336,9 +528,7 @@ fun CalendarScreen(dao: WorkDao) {
                         }
                         dao.clearTariffTemplates()
                         dao.insertTariffTemplates(templates)
-                    }
-
-                    dao.deleteByDay(date.toEpochDay())
+                    }dao.deleteByDay(date.toEpochDay())
                     val newEntries = updatedRows.mapNotNull { row ->
                         val h = row.hoursText.toIntOrNull() ?: 0
                         val m = row.minutesText.toIntOrNull() ?: 0
@@ -349,7 +539,8 @@ fun CalendarScreen(dao: WorkDao) {
                                 dateEpochDay = date.toEpochDay(),
                                 tariffName = row.name,
                                 minutes = totalMins,
-                                rateKopecks = rateKopecks,note = row.note
+                                rateKopecks = rateKopecks,
+                                note = row.note
                             )
                         } else null
                     }
@@ -531,8 +722,7 @@ fun DayEditorDialog(
                         )
 
                         OutlinedTextField(
-                            value = row.minutesText,
-                            onValueChange = { rows[index] = row.copy(minutesText = it.filter(Char::isDigit).take(2)) },
+                            value = row.minutesText,onValueChange = { rows[index] = row.copy(minutesText = it.filter(Char::isDigit).take(2)) },
                             label = { Text("Мин", fontSize = 11.sp) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f),
@@ -542,7 +732,8 @@ fun DayEditorDialog(
                         OutlinedTextField(
                             value = row.rateText,
                             onValueChange = { rows[index] = row.copy(rateText = it) },
-                            label = { Text("Ставка ₽", fontSize = 11.sp) },keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            label = { Text("Ставка ₽", fontSize = 11.sp) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1.4f),
                             singleLine = true
                         )
@@ -712,8 +903,7 @@ fun NightShiftDialog(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier.padding(10.dp),
+                    Column(modifier = Modifier.padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
@@ -725,7 +915,8 @@ fun NightShiftDialog(
                         Text(
                             text = "• ${date.format(DateTimeFormatter.ofPattern("dd.MM"))}: ${formatMinutes(todayMins)}",
                             color = Color(0xFF81C784),
-                            fontSize = 13.sp)
+                            fontSize = 13.sp
+                        )
                         if (nextDayMins > 0) {
                             Text(
                                 text = "• ${date.plusDays(1).format(DateTimeFormatter.ofPattern("dd.MM"))} (после 00:00): ${formatMinutes(nextDayMins)}",
