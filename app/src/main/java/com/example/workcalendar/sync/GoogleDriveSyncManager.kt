@@ -19,7 +19,6 @@ import com.google.api.client.http.ByteArrayContent
 import com.google.api.client.http.HttpRequestInitializer
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
-import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -59,6 +58,7 @@ class GoogleDriveSyncManager(private val context: Context) {
     companion object {
         private const val BACKUP_FILE_NAME = "work_calendar_backup.json"
         private const val SPACE_APP_DATA = "appDataFolder"
+        private const val SCOPE_APP_DATA = "https://www.googleapis.com/auth/drive.appdata"
         private const val PREFS_NAME = "drive_sync_prefs"
         private const val KEY_AUTO_SYNC = "auto_sync_enabled"
     }
@@ -102,7 +102,7 @@ class GoogleDriveSyncManager(private val context: Context) {
             val displayName = googleIdTokenCredential.displayName
 
             val authRequest = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(DriveScopes.APPDATA)))
+                .setRequestedScopes(listOf(Scope(SCOPE_APP_DATA)))
                 .build()
 
             val authResult = Identity.getAuthorizationClient(activity)
@@ -173,7 +173,7 @@ class GoogleDriveSyncManager(private val context: Context) {
             request.readTimeout = 20_000
         }
         return Drive.Builder(transport, jsonFactory, requestInitializer)
-            .setApplicationName(context.getString(R.string.app_name))
+            .setApplicationName("WorkTimeCalendar")
             .build()
     }
 
