@@ -33,6 +33,14 @@ data class WorkEntry(
     }
 }
 
+@Entity(tableName = "tariff_templates")
+data class TariffTemplate(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sortOrder: Int,
+    val tariffName: String,
+    val rateKopecks: Long
+)
+
 @Dao
 interface WorkDao {
     @Query("SELECT * FROM work_entries ORDER BY id ASC")
@@ -43,9 +51,18 @@ interface WorkDao {
 
     @Query("DELETE FROM work_entries WHERE dateEpochDay = :epochDay")
     suspend fun deleteByDay(epochDay: Long)
+
+    @Query("SELECT * FROM tariff_templates ORDER BY sortOrder ASC, id ASC")
+    fun getTariffTemplates(): Flow<List<TariffTemplate>>
+
+    @Query("DELETE FROM tariff_templates")
+    suspend fun clearTariffTemplates()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTariffTemplates(templates: List<TariffTemplate>)
 }
 
-@Database(entities = [WorkEntry::class], version = 1, exportSchema = false)
+@Database(entities = [WorkEntry::class, TariffTemplate::class], version = 2, exportSchema = false)
 abstract class WorkDatabase : RoomDatabase() {
     abstract fun workDao(): WorkDao
 
@@ -59,7 +76,10 @@ abstract class WorkDatabase : RoomDatabase() {
                     context.applicationContext,
                     WorkDatabase::class.java,
                     "work_calendar_db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { INSTANCE = it }
             }
         }
     }
@@ -116,6 +136,16 @@ fun formatMinutes(totalMinutes: Int): String {
 
 fun formatRub(amount: BigDecimal): String {
     return String.format(Locale("ru", "RU"), "%,.2f ₽", amount)
+}
+
+fun formatKopecksInput(kopecks: Long): String {
+    return BigDecimal(kopecks)
+        .divide(BigDecimal(100), 2, RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .let { bd ->
+            val plain = if (bd.scale() < 0) bd.setScale(0).toPlainString() else bd.toPlainString()
+            plain.replace('.', ',')
+        }
 }
 
 fun parseRateToKopecks(input: String): Long {
