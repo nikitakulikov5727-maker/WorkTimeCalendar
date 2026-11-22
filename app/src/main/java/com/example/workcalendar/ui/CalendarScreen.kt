@@ -14,15 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +23,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -85,18 +76,11 @@ fun CalendarScreen(
         }
         if (syncState.account != null && syncState.autoSyncEnabled && !syncState.isBusy) {
             delay(800)
-            syncManager.backupToDrive(
-                entries = allEntries,
-                templates = savedTemplates,
-                silent = true
-            )
+            syncManager.backupToDrive(allEntries, savedTemplates, silent = true)
         }
     }
 
-    val entriesByDay = remember(allEntries) {
-        allEntries.groupBy { LocalDate.ofEpochDay(it.dateEpochDay) }
-    }
-
+    val entriesByDay = remember(allEntries) { allEntries.groupBy { LocalDate.ofEpochDay(it.dateEpochDay) } }
     val monthEntries = remember(allEntries, currentMonth) {
         allEntries.filter {
             val d = LocalDate.ofEpochDay(it.dateEpochDay)
@@ -114,15 +98,13 @@ fun CalendarScreen(
 
     val rangeStats = remember(allEntries, rangeStart, rangeEnd) {
         if (rangeStart != null && rangeEnd != null) {
-            val start = minOf(rangeStart!!, rangeEnd!!)
-            val end = maxOf(rangeStart!!, rangeEnd!!)
+            val s = minOf(rangeStart!!, rangeEnd!!)
+            val e = maxOf(rangeStart!!, rangeEnd!!)
             val filtered = allEntries.filter {
                 val d = LocalDate.ofEpochDay(it.dateEpochDay)
-                !d.isBefore(start) && !d.isAfter(end)
+                !d.isBefore(s) && !d.isAfter(e)
             }
-            val mins = filtered.sumOf { it.minutes }
-            val money = filtered.fold(BigDecimal.ZERO) { acc, e -> acc.add(e.calculateEarningsRub()) }
-            Triple(start, end, Pair(mins, money))
+            Triple(s, e, Pair(filtered.sumOf { it.minutes }, filtered.fold(BigDecimal.ZERO) { a, x -> a.add(x.calculateEarningsRub()) }))
         } else null
     }
 
@@ -141,13 +123,7 @@ fun CalendarScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = currentMonth.year.toString(),
-                        color = Color(0xFFB0B0B0),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-
+                    Text(currentMonth.year.toString(), color = Color(0xFFB0B0B0), fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilledTonalButton(
                             onClick = { showCloudDialog = true },
@@ -162,12 +138,8 @@ fun CalendarScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = if (syncState.account != null) "Облако" else "Войти",
-                                fontSize = 13.sp
-                            )
+                            Text(if (syncState.account != null) "Облако" else "Войти", fontSize = 13.sp)
                         }
-
                         FilledTonalButton(
                             onClick = {
                                 isRangeMode = !isRangeMode
@@ -186,7 +158,8 @@ fun CalendarScreen(
                             Text(if (isRangeMode) "Период: ВКЛ" else "Период", fontSize = 13.sp)
                         }
                     }
-                }Row(
+                }
+                Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -195,9 +168,7 @@ fun CalendarScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
                     }
                     Text(
-                        text = currentMonth.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru"))
-                            .replaceFirstChar { it.uppercase() },
-                        color = Color.White,
+                        text = currentMonth.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru")).replaceFirstChar { it.uppercase() },color = Color.White,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -205,22 +176,9 @@ fun CalendarScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Вперёд", tint = Color.White)
                     }
                 }
-
-                val daysOfWeek = listOf("ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp)
-                ) {
-                    daysOfWeek.forEach { day ->
-                        Text(
-                            text = day,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center,
-                            color = Color(0xFFAAAAAA),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    listOf("ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС").forEach { day ->
+                        Text(day, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color(0xFFAAAAAA), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -237,28 +195,20 @@ fun CalendarScreen(
                     if (rangeStats != null) {
                         val (s, e, totals) = rangeStats
                         val fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-                        Text(
-                            text = "Период: ${s.format(fmt)} — ${e.format(fmt)}",
-                            color = Color(0xFF81C784),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
+                        Text("Период: ${s.format(fmt)} — ${e.format(fmt)}", color = Color(0xFF81C784), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
                         SummaryRow("Часов за период:", formatMinutes(totals.first))
                         SummaryRow("Доход за период:", formatRub(totals.second), highlight = true)
                     } else {
                         Text(
-                            text = if (rangeStart == null)
-                                "Нажмите дату начала периода в календаре"
-                            else
-                                "Начало: ${rangeStart!!.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))}. Нажмите дату конца",
+                            text = if (rangeStart == null) "Нажмите дату начала периода в календаре"
+                            else "Начало: ${rangeStart!!.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))}. Нажмите дату конца",
                             color = Color(0xFFFFD54F),
                             fontSize = 14.sp
                         )
                     }
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFF383838))
                 }
-
                 SummaryRow("Дней отработано", workedDaysCount.toString())
                 SummaryRow("Часов за месяц", formatMinutes(monthTotalMinutes))
                 SummaryRow("Доход за месяц", formatRub(monthTotalMoney), highlight = true)
@@ -298,7 +248,6 @@ fun CalendarScreen(
                     isCurrentMonth -> Color(0xFF212121)
                     else -> Color(0xFF171717)
                 }
-
                 val borderColor = if (date == today) Color(0xFFE53935) else Color(0xFF2E2E2E)
                 val borderWidth = if (date == today) 1.5.dp else 0.5.dp
 
@@ -309,14 +258,11 @@ fun CalendarScreen(
                         .border(borderWidth, borderColor)
                         .clickable {
                             if (isRangeMode) {
-                                when {
-                                    rangeStart == null || (rangeStart != null && rangeEnd != null) -> {
-                                        rangeStart = date
-                                        rangeEnd = null
-                                    }
-                                    else -> {
-                                        rangeEnd = date
-                                    }
+                                if (rangeStart == null || (rangeStart != null && rangeEnd != null)) {
+                                    rangeStart = date
+                                    rangeEnd = null
+                                } else {
+                                    rangeEnd = date
                                 }
                             } else {
                                 selectedDayForEdit = date
@@ -330,23 +276,10 @@ fun CalendarScreen(
                         color = if (isCurrentMonth) Color(0xFFCCCCCC) else Color(0xFF555555),
                         fontSize = 12.sp
                     )
-
                     if (totalMinutes > 0) {
                         val hoursColor = if (totalMinutes > 480) Color(0xFF64B5F6) else Color(0xFFE57373)
-                        val hoursLabel = if (totalMinutes % 60 == 0) {
-                            "${totalMinutes / 60}"
-                        } else {
-                            formatMinutes(totalMinutes)
-                        }
-
-                        Text(
-                            text = hoursLabel,
-                            modifier = Modifier.align(Alignment.Center),
-                            color = hoursColor,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
+                        val hoursLabel = if (totalMinutes % 60 == 0) "${totalMinutes / 60}" else formatMinutes(totalMinutes)
+                        Text(hoursLabel, modifier = Modifier.align(Alignment.Center), color = hoursColor, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text(
                             text = totalDayMoney.setScale(0, RoundingMode.HALF_UP).toPlainString(),
                             modifier = Modifier.align(Alignment.BottomStart),
@@ -361,77 +294,39 @@ fun CalendarScreen(
     }
 
     if (showCloudDialog) {
-        val activity = context as? ActivityAlertDialog(
+        val activity = context as? Activity
+        AlertDialog(
             onDismissRequest = { showCloudDialog = false },
             containerColor = Color(0xFF262626),
-            title = {
-                Text(
-                    text = "Синхронизация с Google Диском",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            },
+            title = { Text("Синхронизация с Google Диском", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val account = syncState.account
                     if (account != null) {
-                        Text(
-                            text = "Аккаунт: ${account.displayName ?: account.email}",
-                            color = Color(0xFF81C784),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = account.email,
-                            color = Color(0xFFB0B0B0),
-                            fontSize = 12.sp
-                        )
-
+                        Text("Аккаунт: ${account.displayName ?: account.email}", color = Color(0xFF81C784), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(account.email, color = Color(0xFFB0B0B0), fontSize = 12.sp)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Автосинхронизация", color = Color.White, fontSize = 14.sp)
-                            Switch(
-                                checked = syncState.autoSyncEnabled,
-                                onCheckedChange = { syncManager.setAutoSync(it) }
-                            )
+                            Switch(checked = syncState.autoSyncEnabled, onCheckedChange = { syncManager.setAutoSync(it) })
                         }
-
                         syncState.lastSyncLabel?.let { label ->
-                            Text(
-                                text = "Последняя синхронизация: $label",
-                                color = Color(0xFF90CAF9),
-                                fontSize = 12.sp
-                            )
+                            Text("Последняя синхронизация: $label", color = Color(0xFF90CAF9), fontSize = 12.sp)
                         }
-
                         Button(
-                            onClick = {
-                                scope.launch {
-                                    syncManager.backupToDrive(
-                                        entries = allEntries,
-                                        templates = savedTemplates
-                                    )
-                                }
-                            },
-                            enabled = !syncState.isBusy,
-                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { scope.launch { syncManager.backupToDrive(allEntries, savedTemplates) } },
+                            enabled = !syncState.isBusy,modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                         ) {
                             Icon(Icons.Default.CloudUpload, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text("Сохранить в облако", color = Color.White)
                         }
-
                         OutlinedButton(
-                            onClick = {
-                                scope.launch {
-                                    syncManager.restoreFromDrive(dao = dao)
-                                }
-                            },
+                            onClick = { scope.launch { syncManager.restoreFromDrive(dao) } },
                             enabled = !syncState.isBusy,
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF90CAF9))
@@ -440,7 +335,6 @@ fun CalendarScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("Восстановить из облака")
                         }
-
                         TextButton(
                             onClick = { syncManager.signOut() },
                             enabled = !syncState.isBusy,
@@ -454,14 +348,13 @@ fun CalendarScreen(
                             color = Color(0xFFCCCCCC),
                             fontSize = 13.sp
                         )
-
                         Button(
                             onClick = {
                                 if (activity != null) {
                                     scope.launch {
                                         val res = syncManager.signInAndAuthorize(activity)
                                         if (res.isSuccess && allEntries.isEmpty() && savedTemplates.isEmpty()) {
-                                            syncManager.restoreFromDrive(dao = dao, silentIfMissing = true)
+                                            syncManager.restoreFromDrive(dao, silentIfMissing = true)
                                         }
                                     }
                                 }
@@ -475,28 +368,18 @@ fun CalendarScreen(
                     }
 
                     if (syncState.isBusy) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             Text("Выполняется синхронизация...", color = Color.White, fontSize = 13.sp)
                         }
                     }
-
                     syncState.statusMessage?.let { msg ->
-                        Text(
-                            text = msg,
-                            color = Color(0xFFFFD54F),
-                            fontSize = 12.sp
-                        )
+                        Text(msg, color = Color(0xFFFFD54F), fontSize = 12.sp)
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showCloudDialog = false }) {
-                    Text("Закрыть", color = Color.White)
-                }
+                TextButton(onClick = { showCloudDialog = false }) { Text("Закрыть", color = Color.White) }
             }
         )
     }
@@ -532,7 +415,8 @@ fun CalendarScreen(
                         }
                         dao.clearTariffTemplates()
                         dao.insertTariffTemplates(templates)
-                    }dao.deleteByDay(date.toEpochDay())
+                    }
+                    dao.deleteByDay(date.toEpochDay())
                     val newEntries = updatedRows.mapNotNull { row ->
                         val h = row.hoursText.toIntOrNull() ?: 0
                         val m = row.minutesText.toIntOrNull() ?: 0
@@ -556,13 +440,7 @@ fun CalendarScreen(
             },
             onAddNightShift = { startTime, durationMinutes, tariffName, rateKopecks ->
                 scope.launch {
-                    val splitEntries = splitNightShift(
-                        startDate = date,
-                        startTime = startTime,
-                        totalDurationMinutes = durationMinutes,
-                        tariffName = tariffName,
-                        rateKopecks = rateKopecks
-                    )
+                    val splitEntries = splitNightShift(date, startTime, durationMinutes, tariffName, rateKopecks)
                     dao.insertAll(splitEntries)
                     selectedDayForEdit = null
                 }
@@ -573,13 +451,8 @@ fun CalendarScreen(
 
 @Composable
 private fun SummaryRow(label: String, value: String, highlight: Boolean = false) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = label, color = Color(0xFFE0E0E0), fontSize = 15.sp)
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = Color(0xFFE0E0E0), fontSize = 15.sp)
         Text(
             text = value,
             color = if (highlight) Color(0xFF81C784) else Color.White,
@@ -609,8 +482,7 @@ fun DayEditorDialog(
                     add(
                         EditableTariffRow(
                             id = e.id,
-                            name = e.tariffName,
-                            hoursText = (e.minutes / 60).toString(),
+                            name = e.tariffName,hoursText = (e.minutes / 60).toString(),
                             minutesText = String.format(Locale.US, "%02d", e.minutes % 60),
                             rateText = formatKopecksInput(e.rateKopecks),
                             note = e.note
@@ -619,43 +491,19 @@ fun DayEditorDialog(
                 }
             } else if (savedTemplates.isNotEmpty()) {
                 savedTemplates.forEach { tpl ->
-                    add(
-                        EditableTariffRow(
-                            name = tpl.tariffName,
-                            hoursText = "0",
-                            minutesText = "00",
-                            rateText = formatKopecksInput(tpl.rateKopecks)
-                        )
-                    )
+                    add(EditableTariffRow(name = tpl.tariffName, hoursText = "0", minutesText = "00", rateText = formatKopecksInput(tpl.rateKopecks)))
                 }
             } else {
-                add(
-                    EditableTariffRow(
-                        name = "ОСНОВНОЙ ТАРИФ",
-                        hoursText = "0",
-                        minutesText = "00",
-                        rateText = "530"
-                    )
-                )
+                add(EditableTariffRow(name = "ОСНОВНОЙ ТАРИФ", hoursText = "0", minutesText = "00", rateText = "530"))
             }
         }
     }
 
-    val defaultNightRate = savedTemplates.firstOrNull()?.let { formatKopecksInput(it.rateKopecks) }
-        ?: rows.firstOrNull()?.rateText
-        ?: "530"
+    val defaultNightRate = savedTemplates.firstOrNull()?.let { formatKopecksInput(it.rateKopecks) } ?: rows.firstOrNull()?.rateText ?: "530"
 
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF262626),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
+        Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF262626), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                 Text(
                     text = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
                     color = Color.White,
@@ -663,9 +511,7 @@ fun DayEditorDialog(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
-
                 Spacer(Modifier.height(10.dp))
-
                 OutlinedButton(
                     onClick = { showNightShiftDialog = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -675,15 +521,10 @@ fun DayEditorDialog(
                     Spacer(Modifier.width(8.dp))
                     Text("Ночная смена")
                 }
-
                 Spacer(Modifier.height(10.dp))
 
                 rows.forEachIndexed { index, row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         OutlinedTextField(
                             value = row.name,
                             onValueChange = { rows[index] = row.copy(name = it) },
@@ -692,30 +533,16 @@ fun DayEditorDialog(
                             singleLine = true
                         )
                         if (rows.size > 1) {
-                            IconButton(
-                                onClick = { rows.removeAt(index) },
-                                modifier = Modifier.padding(start = 4.dp)
-                            ) {
+                            IconButton(onClick = { rows.removeAt(index) }, modifier = Modifier.padding(start = 4.dp)) {
                                 Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = Color(0xFFE57373))
                             }
                         }
                     }
-
                     if (row.note.isNotEmpty()) {
-                        Text(
-                            text = "Примечание: ${row.note}",
-                            color = Color(0xFF90CAF9),
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
+                        Text("Примечание: ${row.note}", color = Color(0xFF90CAF9), fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
                     }
-
                     Spacer(Modifier.height(6.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedTextField(
                             value = row.hoursText,
                             onValueChange = { rows[index] = row.copy(hoursText = it.filter(Char::isDigit).take(2)) },
@@ -724,15 +551,14 @@ fun DayEditorDialog(
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
-
                         OutlinedTextField(
-                            value = row.minutesText,onValueChange = { rows[index] = row.copy(minutesText = it.filter(Char::isDigit).take(2)) },
+                            value = row.minutesText,
+                            onValueChange = { rows[index] = row.copy(minutesText = it.filter(Char::isDigit).take(2)) },
                             label = { Text("Мин", fontSize = 11.sp) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f),
                             singleLine = true
                         )
-
                         OutlinedTextField(
                             value = row.rateText,
                             onValueChange = { rows[index] = row.copy(rateText = it) },
@@ -749,14 +575,7 @@ fun DayEditorDialog(
                     onClick = {
                         val nextNum = rows.size + 1
                         val baseRate = rows.firstOrNull()?.rateText ?: "530"
-                        rows.add(
-                            EditableTariffRow(
-                                name = "ТАРИФ $nextNum",
-                                hoursText = "0",
-                                minutesText = "00",
-                                rateText = baseRate
-                            )
-                        )
+                        rows.add(EditableTariffRow(name = "ТАРИФ $nextNum", hoursText = "0", minutesText = "00", rateText = baseRate))
                     },
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
@@ -775,19 +594,14 @@ fun DayEditorDialog(
                 ) {
                     Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = if (templateSavedBanner) "Тарифы сохранены для всех дней ✓" else "Запомнить тарифы для других дней",
-                        fontSize = 13.sp
-                    )
+                    Text(if (templateSavedBanner) "Тарифы сохранены для всех дней ✓" else "Запомнить тарифы для других дней", fontSize = 13.sp)
                 }
 
                 Spacer(Modifier.height(12.dp))
 
                 Button(
                     onClick = { onSaveDay(rows.toList(), true) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB73A3A)),
                     shape = RoundedCornerShape(24.dp)
                 ) {
@@ -826,17 +640,9 @@ fun NightShiftDialog(
     val sh = (startHour.toIntOrNull() ?: 0).coerceIn(0, 23)
     val sm = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
     val eh = (endHour.toIntOrNull() ?: 8).coerceIn(0, 23)
-    val em = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)
-
-    val startMinuteOfDay = sh * 60 + sm
+    val em = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)val startMinuteOfDay = sh * 60 + sm
     val endMinuteOfDay = eh * 60 + em
-
-    val totalDur = if (endMinuteOfDay > startMinuteOfDay) {
-        endMinuteOfDay - startMinuteOfDay
-    } else {
-        (24 * 60 - startMinuteOfDay) + endMinuteOfDay
-    }
-
+    val totalDur = if (endMinuteOfDay > startMinuteOfDay) endMinuteOfDay - startMinuteOfDay else (24 * 60 - startMinuteOfDay) + endMinuteOfDay
     val untilMidnight = 24 * 60 - startMinuteOfDay
     val todayMins = minOf(totalDur, untilMidnight)
     val nextDayMins = (totalDur - todayMins).coerceAtLeast(0)
@@ -844,13 +650,7 @@ fun NightShiftDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF2B2B2B),
-        title = {
-            Text(
-                text = "Ночная смена (${date.format(DateTimeFormatter.ofPattern("dd.MM"))})",
-                color = Color.White,
-                fontSize = 17.sp
-            )
-        },
+        title = { Text("Ночная смена (${date.format(DateTimeFormatter.ofPattern("dd.MM"))})", color = Color.White, fontSize = 17.sp) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Начало смены (ЧЧ : ММ):", color = Color(0xFFCCCCCC), fontSize = 13.sp)
@@ -872,7 +672,6 @@ fun NightShiftDialog(
                         singleLine = true
                     )
                 }
-
                 Text("Окончание смены (ЧЧ : ММ):", color = Color(0xFFCCCCCC), fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -892,7 +691,6 @@ fun NightShiftDialog(
                         singleLine = true
                     )
                 }
-
                 OutlinedTextField(
                     value = rateText,
                     onValueChange = { rateText = it },
@@ -901,51 +699,24 @@ fun NightShiftDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-
-                Surface(
-                    color = Color(0xFF1E1E1E),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = "Всего: ${formatMinutes(totalDur)}",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            text = "• ${date.format(DateTimeFormatter.ofPattern("dd.MM"))}: ${formatMinutes(todayMins)}",
-                            color = Color(0xFF81C784),
-                            fontSize = 13.sp
-                        )
+                Surface(color = Color(0xFF1E1E1E), shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Всего: ${formatMinutes(totalDur)}", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("• ${date.format(DateTimeFormatter.ofPattern("dd.MM"))}: ${formatMinutes(todayMins)}", color = Color(0xFF81C784), fontSize = 13.sp)
                         if (nextDayMins > 0) {
-                            Text(
-                                text = "• ${date.plusDays(1).format(DateTimeFormatter.ofPattern("dd.MM"))} (после 00:00): ${formatMinutes(nextDayMins)}",
-                                color = Color(0xFF64B5F6),
-                                fontSize = 13.sp
-                            )
+                            Text("• ${date.plusDays(1).format(DateTimeFormatter.ofPattern("dd.MM"))} (после 00:00): ${formatMinutes(nextDayMins)}", color = Color(0xFF64B5F6), fontSize = 13.sp)
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    onConfirm(LocalTime.of(sh, sm), totalDur, parseRateToKopecks(rateText))
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-            ) {
+            Button(onClick = { onConfirm(LocalTime.of(sh, sm), totalDur, parseRateToKopecks(rateText)) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))) {
                 Text("Добавить смену", color = Color.White)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Отмена", color = Color(0xFFB0B0B0))
-            }
+            TextButton(onClick = onDismiss) { Text("Отмена", color = Color(0xFFB0B0B0)) }
         }
     )
 }
