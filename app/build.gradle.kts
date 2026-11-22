@@ -72,11 +72,12 @@ android {
                 "META-INF/NOTICE.txt",
                 "META-INF/notice.txt",
                 "META-INF/ASL2.0",
-                "META-INF/*.kotlin_module"
+                "META-INF/*.kotlin_module",
+                "**/*.proto",
+                "com/google/api/client/googleapis/json/error.proto"
             )
         }
     }
-}
 
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
