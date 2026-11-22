@@ -52,6 +52,10 @@ interface WorkDao {
     @Query("DELETE FROM work_entries WHERE dateEpochDay = :epochDay")
     suspend fun deleteByDay(epochDay: Long)
 
+    // 👇 ВСТАВЬ ВОТ ЭТУ СТРОЧКУ 👇
+    @Query("DELETE FROM work_entries")
+    suspend fun clearAllEntries()
+
     @Query("SELECT * FROM tariff_templates ORDER BY sortOrder ASC, id ASC")
     fun getTariffTemplates(): Flow<List<TariffTemplate>>
 
