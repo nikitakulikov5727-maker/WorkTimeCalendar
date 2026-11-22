@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NightsStay
@@ -53,6 +54,7 @@ data class EditableTariffRow(
 fun CalendarScreen(dao: WorkDao) {
     val scope = rememberCoroutineScope()
     val allEntries by dao.getAllEntries().collectAsState(initial = emptyList())
+    val savedTemplates by dao.getTariffTemplates().collectAsState(initial = emptyList())
 
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDayForEdit by remember { mutableStateOf<LocalDate?>(null) }
@@ -178,8 +180,7 @@ fun CalendarScreen(dao: WorkDao) {
                     .padding(14.dp)
             ) {
                 if (isRangeMode) {
-                    if (rangeStats != null) {
-                        val (s, e, totals) = rangeStats
+                    if (rangeStats != null) {val (s, e, totals) = rangeStats
                         val fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy")
                         Text(
                             text = "Период: ${s.format(fmt)} — ${e.format(fmt)}",
@@ -308,9 +309,35 @@ fun CalendarScreen(dao: WorkDao) {
         DayEditorDialog(
             date = date,
             existingEntries = entriesByDay[date].orEmpty(),
+            savedTemplates = savedTemplates,
             onDismiss = { selectedDayForEdit = null },
-            onSaveDay = { updatedRows ->
+            onSaveTemplateOnly = { rows ->
                 scope.launch {
+                    val templates = rows.mapIndexed { index, row ->
+                        TariffTemplate(
+                            sortOrder = index,
+                            tariffName = row.name.ifBlank { if (index == 0) "ОСНОВНОЙ ТАРИФ" else "ТАРИФ ${index + 1}" },
+                            rateKopecks = parseRateToKopecks(row.rateText)
+                        )
+                    }
+                    dao.clearTariffTemplates()
+                    dao.insertTariffTemplates(templates)
+                }
+            },
+            onSaveDay = { updatedRows, saveAsTemplate ->
+                scope.launch {
+                    if (saveAsTemplate) {
+                        val templates = updatedRows.mapIndexed { index, row ->
+                            TariffTemplate(
+                                sortOrder = index,
+                                tariffName = row.name.ifBlank { if (index == 0) "ОСНОВНОЙ ТАРИФ" else "ТАРИФ ${index + 1}" },
+                                rateKopecks = parseRateToKopecks(row.rateText)
+                            )
+                        }
+                        dao.clearTariffTemplates()
+                        dao.insertTariffTemplates(templates)
+                    }
+
                     dao.deleteByDay(date.toEpochDay())
                     val newEntries = updatedRows.mapNotNull { row ->
                         val h = row.hoursText.toIntOrNull() ?: 0
@@ -322,8 +349,7 @@ fun CalendarScreen(dao: WorkDao) {
                                 dateEpochDay = date.toEpochDay(),
                                 tariffName = row.name,
                                 minutes = totalMins,
-                                rateKopecks = rateKopecks,
-                                note = row.note
+                                rateKopecks = rateKopecks,note = row.note
                             )
                         } else null
                     }
@@ -372,36 +398,57 @@ private fun SummaryRow(label: String, value: String, highlight: Boolean = false)
 fun DayEditorDialog(
     date: LocalDate,
     existingEntries: List<WorkEntry>,
+    savedTemplates: List<TariffTemplate>,
     onDismiss: () -> Unit,
-    onSaveDay: (List<EditableTariffRow>) -> Unit,
+    onSaveTemplateOnly: (List<EditableTariffRow>) -> Unit,
+    onSaveDay: (List<EditableTariffRow>, Boolean) -> Unit,
     onAddNightShift: (LocalTime, Int, String, Long) -> Unit
 ) {
     var showNightShiftDialog by remember { mutableStateOf(false) }
+    var templateSavedBanner by remember { mutableStateOf(false) }
 
     val rows = remember {
         mutableStateListOf<EditableTariffRow>().apply {
-            if (existingEntries.isEmpty()) {
-                add(EditableTariffRow(name = "ОСНОВНОЙ ТАРИФ", hoursText = "8", minutesText = "00", rateText = "562,23"))
-            } else {
+            if (existingEntries.isNotEmpty()) {
                 existingEntries.forEach { e ->
-                    val rateStr = BigDecimal(e.rateKopecks)
-                        .divide(BigDecimal(100))
-                        .toPlainString()
-                        .replace('.', ',')
                     add(
                         EditableTariffRow(
                             id = e.id,
                             name = e.tariffName,
                             hoursText = (e.minutes / 60).toString(),
                             minutesText = String.format(Locale.US, "%02d", e.minutes % 60),
-                            rateText = rateStr,
+                            rateText = formatKopecksInput(e.rateKopecks),
                             note = e.note
                         )
                     )
                 }
+            } else if (savedTemplates.isNotEmpty()) {
+                savedTemplates.forEach { tpl ->
+                    add(
+                        EditableTariffRow(
+                            name = tpl.tariffName,
+                            hoursText = "0",
+                            minutesText = "00",
+                            rateText = formatKopecksInput(tpl.rateKopecks)
+                        )
+                    )
+                }
+            } else {
+                add(
+                    EditableTariffRow(
+                        name = "ОСНОВНОЙ ТАРИФ",
+                        hoursText = "0",
+                        minutesText = "00",
+                        rateText = "530"
+                    )
+                )
             }
         }
     }
+
+    val defaultNightRate = savedTemplates.firstOrNull()?.let { formatKopecksInput(it.rateKopecks) }
+        ?: rows.firstOrNull()?.rateText
+        ?: "530"
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -422,7 +469,7 @@ fun DayEditorDialog(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
 
                 OutlinedButton(
                     onClick = { showNightShiftDialog = true },
@@ -434,29 +481,46 @@ fun DayEditorDialog(
                     Text("Ночная смена")
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
 
                 rows.forEachIndexed { index, row ->
-                    Text(
-                        text = row.name + if (row.note.isNotEmpty()) " (${row.note})" else "",
-                        color = Color(0xFFCCCCCC),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(4.dp))
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        OutlinedTextField(
+                            value = row.name,
+                            onValueChange = { rows[index] = row.copy(name = it) },
+                            label = { Text("Название тарифа", fontSize = 11.sp) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
                         if (rows.size > 1) {
                             IconButton(
                                 onClick = { rows.removeAt(index) },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.padding(start = 4.dp)
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = Color(0xFFE57373))
                             }
                         }
+                    }
 
+                    if (row.note.isNotEmpty()) {
+                        Text(
+                            text = "Примечание: ${row.note}",
+                            color = Color(0xFF90CAF9),
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         OutlinedTextField(
                             value = row.hoursText,
                             onValueChange = { rows[index] = row.copy(hoursText = it.filter(Char::isDigit).take(2)) },
@@ -478,24 +542,24 @@ fun DayEditorDialog(
                         OutlinedTextField(
                             value = row.rateText,
                             onValueChange = { rows[index] = row.copy(rateText = it) },
-                            label = { Text("Ставка ₽", fontSize = 11.sp) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            label = { Text("Ставка ₽", fontSize = 11.sp) },keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1.4f),
                             singleLine = true
                         )
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
 
                 TextButton(
                     onClick = {
                         val nextNum = rows.size + 1
+                        val baseRate = rows.firstOrNull()?.rateText ?: "530"
                         rows.add(
                             EditableTariffRow(
                                 name = "ТАРИФ $nextNum",
                                 hoursText = "0",
                                 minutesText = "00",
-                                rateText = "562,23"
+                                rateText = baseRate
                             )
                         )
                     },
@@ -506,10 +570,26 @@ fun DayEditorDialog(
                     Text("Добавить тариф", color = Color.White, fontSize = 15.sp)
                 }
 
-                Spacer(Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = {
+                        onSaveTemplateOnly(rows.toList())
+                        templateSavedBanner = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF81C784))
+                ) {
+                    Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (templateSavedBanner) "Тарифы сохранены для всех дней ✓" else "Запомнить тарифы для других дней",
+                        fontSize = 13.sp
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
 
                 Button(
-                    onClick = { onSaveDay(rows.toList()) },
+                    onClick = { onSaveDay(rows.toList(), true) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
@@ -525,6 +605,7 @@ fun DayEditorDialog(
     if (showNightShiftDialog) {
         NightShiftDialog(
             date = date,
+            initialRateText = defaultNightRate,
             onDismiss = { showNightShiftDialog = false },
             onConfirm = { startTime, durationMins, rateKopecks ->
                 showNightShiftDialog = false
@@ -537,6 +618,7 @@ fun DayEditorDialog(
 @Composable
 fun NightShiftDialog(
     date: LocalDate,
+    initialRateText: String,
     onDismiss: () -> Unit,
     onConfirm: (LocalTime, Int, Long) -> Unit
 ) {
@@ -544,7 +626,7 @@ fun NightShiftDialog(
     var startMin by remember { mutableStateOf("15") }
     var endHour by remember { mutableStateOf("08") }
     var endMin by remember { mutableStateOf("00") }
-    var rateText by remember { mutableStateOf("562,23") }
+    var rateText by remember { mutableStateOf(initialRateText) }
 
     val sh = (startHour.toIntOrNull() ?: 0).coerceIn(0, 23)
     val sm = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
@@ -643,8 +725,7 @@ fun NightShiftDialog(
                         Text(
                             text = "• ${date.format(DateTimeFormatter.ofPattern("dd.MM"))}: ${formatMinutes(todayMins)}",
                             color = Color(0xFF81C784),
-                            fontSize = 13.sp
-                        )
+                            fontSize = 13.sp)
                         if (nextDayMins > 0) {
                             Text(
                                 text = "• ${date.plusDays(1).format(DateTimeFormatter.ofPattern("dd.MM"))} (после 00:00): ${formatMinutes(nextDayMins)}",
