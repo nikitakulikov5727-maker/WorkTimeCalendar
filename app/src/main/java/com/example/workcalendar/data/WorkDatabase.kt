@@ -1,7 +1,15 @@
 package com.example.workcalendar.data
 
 import android.content.Context
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Database
+import androidx.room.Entity
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
+import androidx.room.Query
+import androidx.room.Room
+import androidx.room.RoomDatabase
 import kotlinx.coroutines.flow.Flow
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -9,9 +17,9 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.util.Locale
 
-tableName = "work_entries"
+@Entity(tableName = "work_entries")
 data class WorkEntry(
-    autoGenerate = true val id: Long = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val dateEpochDay: Long,
     val tariffName: String,
     val minutes: Int,
@@ -27,17 +35,17 @@ data class WorkEntry(
 
 @Dao
 interface WorkDao {
-    "SELECT * FROM work_entries ORDER BY id ASC"
-    fun getAllEntries(): Flow<List<WorkEntry»
+    @Query("SELECT * FROM work_entries ORDER BY id ASC")
+    fun getAllEntries(): Flow<List<WorkEntry>>
 
-    onConflict = OnConflictStrategy.REPLACE
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(entries: List<WorkEntry>)
 
-    "DELETE FROM work_entries WHERE dateEpochDay = :epochDay"
+    @Query("DELETE FROM work_entries WHERE dateEpochDay = :epochDay")
     suspend fun deleteByDay(epochDay: Long)
 }
 
-entities = [WorkEntry::class, version = 1, exportSchema = false]
+@Database(entities = [WorkEntry::class], version = 1, exportSchema = false)
 abstract class WorkDatabase : RoomDatabase() {
     abstract fun workDao(): WorkDao
 
