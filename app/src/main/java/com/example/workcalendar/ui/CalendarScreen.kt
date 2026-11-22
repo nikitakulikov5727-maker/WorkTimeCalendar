@@ -168,7 +168,8 @@ fun CalendarScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White)
                     }
                     Text(
-                        text = currentMonth.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru")).replaceFirstChar { it.uppercase() },color = Color.White,
+                        text = currentMonth.month.getDisplayName(TextStyle.FULL_STANDALONE, Locale("ru")).replaceFirstChar { it.uppercase() },
+                        color = Color.White,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -318,7 +319,8 @@ fun CalendarScreen(
                         }
                         Button(
                             onClick = { scope.launch { syncManager.backupToDrive(allEntries, savedTemplates) } },
-                            enabled = !syncState.isBusy,modifier = Modifier.fillMaxWidth(),
+                            enabled = !syncState.isBusy,
+                            modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                         ) {
                             Icon(Icons.Default.CloudUpload, contentDescription = null)
@@ -482,7 +484,8 @@ fun DayEditorDialog(
                     add(
                         EditableTariffRow(
                             id = e.id,
-                            name = e.tariffName,hoursText = (e.minutes / 60).toString(),
+                            name = e.tariffName,
+                            hoursText = (e.minutes / 60).toString(),
                             minutesText = String.format(Locale.US, "%02d", e.minutes % 60),
                             rateText = formatKopecksInput(e.rateKopecks),
                             note = e.note
@@ -640,7 +643,9 @@ fun NightShiftDialog(
     val sh = (startHour.toIntOrNull() ?: 0).coerceIn(0, 23)
     val sm = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
     val eh = (endHour.toIntOrNull() ?: 8).coerceIn(0, 23)
-    val em = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)val startMinuteOfDay = sh * 60 + sm
+    val em = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)
+
+    val startMinuteOfDay = sh * 60 + sm
     val endMinuteOfDay = eh * 60 + em
     val totalDur = if (endMinuteOfDay > startMinuteOfDay) endMinuteOfDay - startMinuteOfDay else (24 * 60 - startMinuteOfDay) + endMinuteOfDay
     val untilMidnight = 24 * 60 - startMinuteOfDay
