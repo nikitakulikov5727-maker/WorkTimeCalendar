@@ -1,4 +1,4 @@
-package com.example.workcalendar.ui
+[23.11.2026 2:13] Никита: package com.example.workcalendar.ui
 
 import android.app.Activity
 import androidx.compose.foundation.background
@@ -186,7 +186,8 @@ fun CalendarScreen(
                             Text(if (isRangeMode) "Период: ВКЛ" else "Период", fontSize = 13.sp)
                         }
                     }
-                }Row(
+                }
+[23.11.2026 2:13] Никита: Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -207,7 +208,11 @@ fun CalendarScreen(
                 }
 
                 val daysOfWeek = listOf("ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС")
-                Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                ) {
                     daysOfWeek.forEach { day ->
                         Text(
                             text = day,
@@ -358,8 +363,9 @@ fun CalendarScreen(
 
     if (showCloudDialog) {
         val activity = context as? Activity
-        AlertDialog(
-            onDismissRequest = { showCloudDialog = false },containerColor = Color(0xFF262626),
+[23.11.2026 2:13] Никита: AlertDialog(
+            onDismissRequest = { showCloudDialog = false },
+            containerColor = Color(0xFF262626),
             title = {
                 Text(
                     text = "Синхронизация с Google Диском",
@@ -528,7 +534,8 @@ fun CalendarScreen(
                         }
                         dao.clearTariffTemplates()
                         dao.insertTariffTemplates(templates)
-                    }dao.deleteByDay(date.toEpochDay())
+                    }
+[23.11.2026 2:13] Никита: dao.deleteByDay(date.toEpochDay())
                     val newEntries = updatedRows.mapNotNull { row ->
                         val h = row.hoursText.toIntOrNull() ?: 0
                         val m = row.minutesText.toIntOrNull() ?: 0
@@ -722,7 +729,8 @@ fun DayEditorDialog(
                         )
 
                         OutlinedTextField(
-                            value = row.minutesText,onValueChange = { rows[index] = row.copy(minutesText = it.filter(Char::isDigit).take(2)) },
+                            value = row.minutesText,
+[23.11.2026 2:13] Никита: onValueChange = { rows[index] = row.copy(minutesText = it.filter(Char::isDigit).take(2)) },
                             label = { Text("Мин", fontSize = 11.sp) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f),
@@ -903,7 +911,8 @@ fun NightShiftDialog(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(10.dp),
+                    Column(
+[23.11.2026 2:13] Никита: modifier = Modifier.padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
