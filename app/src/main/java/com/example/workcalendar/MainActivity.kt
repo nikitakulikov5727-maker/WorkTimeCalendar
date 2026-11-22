@@ -6,8 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import com.example.workcalendar.data.WorkDatabase
+import com.example.workcalendar.sync.GoogleDriveSyncManager
 import com.example.workcalendar.ui.CalendarScreen
 
 class MainActivity : ComponentActivity() {
@@ -18,6 +20,8 @@ class MainActivity : ComponentActivity() {
         val db = WorkDatabase.getInstance(applicationContext)
 
         setContent {
+            val syncManager = remember { GoogleDriveSyncManager(applicationContext) }
+
             MaterialTheme(
                 colorScheme = darkColorScheme(
                     background = Color(0xFF141414),
@@ -27,7 +31,10 @@ class MainActivity : ComponentActivity() {
                     onSurface = Color.White
                 )
             ) {
-                CalendarScreen(dao = db.workDao())
+                CalendarScreen(
+                    dao = db.workDao(),
+                    syncManager = syncManager
+                )
             }
         }
     }
