@@ -65,6 +65,7 @@ android {
         resources {
             excludes += setOf(
                 "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
                 "META-INF/LICENSE",
                 "META-INF/LICENSE.txt",
                 "META-INF/license.txt",
@@ -73,7 +74,9 @@ android {
                 "META-INF/notice.txt",
                 "META-INF/ASL2.0",
                 "META-INF/*.kotlin_module",
-                "**/*.proto",
+                "META-INF/*.SF",
+                "META-INF/*.DSA",
+                "META-INF/*.RSA",
                 "com/google/api/client/googleapis/json/error.proto"
             )
         }
