@@ -78,6 +78,7 @@ android {
             )
         }
     }
+}
 
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
@@ -96,13 +97,11 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
-    // Вход через Google (Credential Manager) + авторизация scope Google Drive
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.google.android.gms:play-services-auth:21.3.0")
 
-    // Google Drive REST API v3 (appDataFolder) + Gson
     implementation("com.google.api-client:google-api-client-android:2.7.0")
     implementation("com.google.http-client:google-http-client-gson:1.45.0")
     implementation("com.google.apis:google-api-services-drive:v3-rev20241027-2.0.0")
